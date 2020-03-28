@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Metadata:
+    Generator: "console-recorder"
+Description: ""
+
+Parameters:
+  VPC:
+    Type: AWS::EC2::VPC::Id 
+    Description: The VPC to start the instance
+  HostName:
+    Type: String
+    Description: The first part of the FQDN
+    Default: "bbb"
+  DomainName:
+    Type: String
+    Description: The domain name you own
+    Default: "example.com"
+  AWSManagedDomain:
+    Type: String
+    Description: Weather the domain on managed bu AWS Route53
+    AllowedValues: 
+      - "true"
+      - "false"
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+  NodeSpotPrice:
+    Type: String
+    Description: The spot price for this Instance
+    Default: "0.1"
+Conditions:
+  IsSpotInstance: !Not [ !Equals [ !Ref NodeSpotPrice, "" ] ]
+  IsRoute53Needed: !Equals [ !Ref AWSManagedDomain, "true" ]
+Mappings:
+  AmiPerRegion:
+    eu-central-1:
+     id: ami-0257508f40836e6cf
+    eu-north-1:
+      id: ami-0eb04b36ce3c3b0ac
+    eu-west-1:
+      id: ami-01793b684af7a3e2c
+    eu-west-2:
+      id: ami-014ae7e330e2651dc
+    eu-west-3:
+      id: ami-0a3fd389b49c645bf
+    us-east-1:
+      id: ami-04ac550b78324f651
+    us-east-2:
+      id: ami-0009e532719fe9bff
+    us-west-1:
+      id: ami-0798ac7e2b0fb9e75
+    us-west-2:
+      id: ami-02e30ba14d8ffa6e6
+
+Resources:
+    ec2SecGr:
+        Type: "AWS::EC2::SecurityGroup"
+        Properties:
+            GroupDescription: BigBlueButton
+            GroupName: !Ref AWS::StackName
+            VpcId: "vpc-bf9373d6"
+            SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+
+    launchTemplate:
+      Type: AWS::EC2::LaunchTemplate
+      Properties:
+        LaunchTemplateName: !Join [ "-" , [ "BBBTemplate" , !Ref "AWS::StackName" ] ]
+        LaunchTemplateData:
+            ImageId: !FindInMap [AmiPerRegion, !Ref "AWS::Region", id]
+            KeyName: !Ref KeyName
+            SecurityGroupIds: 
+              - !Ref ec2SecGr
+            InstanceType: "c3.xlarge"
+            InstanceMarketOptions:
+              MarketType: spot
+              SpotOptions: 
+                MaxPrice: !If [ IsSpotInstance, !Ref NodeSpotPrice, !Ref "AWS::NoValue" ]
+            EbsOptimized: false
+            UserData: 
+              Fn::Base64: |
+                  #!/usr/bin/env bash
+
+                  curl -v https://raw.githubusercontent.com/lalyos/bbb/master/cloud-init.sh -o /usr/local/bin/bbb-cloud-init.sh
+                  chmod +x /usr/local/bin/bbb-cloud-init.sh
+                  /usr/local/bin/bbb-cloud-init.sh                  
+            BlockDeviceMappings: 
+              - 
+                DeviceName: "/dev/xvda"
+                Ebs: 
+                    VolumeSize: 8
+                    DeleteOnTermination: true
+                    VolumeType: "gp2"
+        
+    ec2bbb:
+        Type: "AWS::EC2::Instance"
+        Properties:
+          LaunchTemplate:
+            LaunchTemplateId: !Ref launchTemplate
+            Version: "1"
+
+    route53bbb:
+      Type: AWS::Route53::RecordSetGroup
+      Condition: IsRoute53Needed
+      Properties: 
+        HostedZoneName: !Join [ "" , [ !Ref DomainName , "." ] ]
+        RecordSets: 
+          - Name: !Join [ "" , [ !Ref HostName, ".", !Ref DomainName , "." ] ]
+            Type: "A"
+            TTL: 300
+            ResourceRecords: 
+              - !GetAtt ec2bbb.PublicIp
