@@ -64,6 +64,41 @@ Resources:
               FromPort: 22
               ToPort: 22
               CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 443
+              ToPort: 443
+              CidrIp: 0.0.0.0/0
+
+            - IpProtocol: tcp
+              FromPort: 5066
+              ToPort: 5066
+              CidrIp: 0.0.0.0/0
+              Description: freeswitch-ws
+            - IpProtocol: tcp
+              FromPort: 7443
+              ToPort: 7443
+              CidrIp: 0.0.0.0/0
+              Description: freeswitch-wss
+
+            - IpProtocol: tcp
+              FromPort: 1935
+              ToPort: 1935
+              CidrIp: 0.0.0.0/0
+
+            - IpProtocol: tcp
+              FromPort: 8888
+              ToPort: 8888
+              CidrIp: 0.0.0.0/0
+              Description: Kurento SFU
+
+            - IpProtocol: udp
+              FromPort: 16384
+              ToPort: 32768
+              CidrIp: 0.0.0.0/0
 
     launchTemplate:
       Type: AWS::EC2::LaunchTemplate
