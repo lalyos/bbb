@@ -58,7 +58,7 @@ Resources:
         Properties:
             GroupDescription: BigBlueButton
             GroupName: !Ref AWS::StackName
-            VpcId: "vpc-bf9373d6"
+            VpcId: !Ref VPC
             SecurityGroupIngress:
             - IpProtocol: tcp
               FromPort: 22
