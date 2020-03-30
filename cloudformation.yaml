@@ -18,12 +18,23 @@ Parameters:
     Type: String
     Description: The domain name you own
     Default: "example.com"
+  AcmeEmail:
+    Type: String
+    Description: Let's Encrypt registrational email
   AWSManagedDomain:
     Type: String
+    Default: "false"
     Description: Weather the domain on managed bu AWS Route53
     AllowedValues: 
       - "true"
       - "false"
+  BBBVersion:
+    Type: String
+    Description: BigBlueButton version to install
+    AllowedValues:
+      - xenial-220
+      - xenial-200
+    Default: xenial-220
   KeyName:
     Description: The EC2 Key Pair to allow SSH access to the instance
     Type: 'AWS::EC2::KeyPair::KeyName'
@@ -119,12 +130,23 @@ Resources:
                 MaxPrice: !If [ IsSpotInstance, !Ref NodeSpotPrice, !Ref "AWS::NoValue" ]
             EbsOptimized: false
             UserData: 
-              Fn::Base64: |
+              Fn::Base64: 
+                Fn::Sub: 
+                - |
                   #!/usr/bin/env bash
 
-                  curl -v https://raw.githubusercontent.com/lalyos/bbb/master/cloud-init.sh -o /usr/local/bin/bbb-cloud-init.sh
-                  chmod +x /usr/local/bin/bbb-cloud-init.sh
-                  /usr/local/bin/bbb-cloud-init.sh                  
+                  wget -qO- https://ubuntu.bigbluebutton.org/bbb-install.sh \
+                  | bash -xs -- \
+                    -v ${BBB_VERSION} \
+                    -e ${EMAIL} \
+                    -s ${FQDN} \
+                    -g
+
+                  curl -Lo /usr/local/bin/rmate https://raw.githubusercontent.com/aurora/rmate/master/rmate && chmod +x /usr/local/bin/rmate
+
+                - FQDN: !Join [ "" , [ !Ref HostName, ".", !Ref DomainName ] ]
+                  EMAIL: !Ref AcmeEmail
+                  BBB_VERSION: !Ref BBBVersion
             BlockDeviceMappings: 
               - 
                 DeviceName: "/dev/xvda"
