@@ -7,6 +7,9 @@ Parameters:
   VPC:
     Type: AWS::EC2::VPC::Id 
     Description: The VPC to start the instance
+  EllasticIP:
+    Type: String
+    Description: preallocated reserved static IP
   HostName:
     Type: String
     Description: The first part of the FQDN
@@ -136,6 +139,12 @@ Resources:
           LaunchTemplate:
             LaunchTemplateId: !Ref launchTemplate
             Version: "1"
+
+    IPAssoc:
+      Type: AWS::EC2::EIPAssociation
+      Properties:
+        InstanceId: !Ref 'ec2bbb'
+        EIP: !Ref 'EllasticIP'
 
     route53bbb:
       Type: AWS::Route53::RecordSetGroup
